@@ -9,9 +9,6 @@ dependencies {
   implementation("io.opentelemetry:opentelemetry-sdk:1.16.0")
   implementation("io.opentelemetry:opentelemetry-exporter-otlp-common:1.15.0")
   implementation("io.opentelemetry:opentelemetry-api:1.16.0")
-
-
-
 }
 
 tasks {
