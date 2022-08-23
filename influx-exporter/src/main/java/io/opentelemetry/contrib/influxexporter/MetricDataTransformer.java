@@ -7,6 +7,7 @@ package io.opentelemetry.contrib.influxexporter;
 
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.GaugeData;
 import io.opentelemetry.sdk.metrics.data.HistogramData;
@@ -25,6 +26,12 @@ import java.util.List;
  * {@link com.influxdb.client.InfluxDBClient}.
  */
 public class MetricDataTransformer {
+  private static final String VALUE_FIELD_NAME = "value";
+  private static final String SUM_FIELD_NAME = "sum";
+  private static final String COUNT_FIELD_NAME = "count";
+  private static final String QUANTILTE_FIELD_NAME = "quantile";
+  private static final String MAX_FIELD_NAME = "max";
+  private static final String MIN_FIELD_NAME = "min";
 
   private MetricDataTransformer() {}
 
@@ -71,17 +78,8 @@ public class MetricDataTransformer {
 
     pointData.forEach(
         doublePointData -> {
-          Long timeStamp = doublePointData.getEpochNanos();
-
-          Point point =
-              new Point(name)
-                  .time(timeStamp, WritePrecision.NS)
-                  .addField("value", doublePointData.getValue());
-
-          doublePointData
-              .getAttributes()
-              .forEach((attributeKey, o) -> point.addTag(attributeKey.getKey(), o.toString()));
-
+          Point point = pointDataToPoint(doublePointData, name);
+          addAttributesToPoint(point, doublePointData.getAttributes());
           points.add(point);
         });
 
@@ -94,16 +92,8 @@ public class MetricDataTransformer {
 
     pointData.forEach(
         doublePointData -> {
-          Long timeStamp = doublePointData.getEpochNanos();
-
-          Point point =
-              new Point(name)
-                  .time(timeStamp, WritePrecision.NS)
-                  .addField("value", doublePointData.getValue());
-          doublePointData
-              .getAttributes()
-              .forEach((attributeKey, o) -> point.addTag(attributeKey.getKey(), o.toString()));
-
+          Point point = pointDataToPoint(doublePointData, name);
+          addAttributesToPoint(point, doublePointData.getAttributes());
           points.add(point);
         });
 
@@ -116,16 +106,8 @@ public class MetricDataTransformer {
 
     pointData.forEach(
         longPointData -> {
-          Long timeStamp = longPointData.getEpochNanos();
-
-          Point point =
-              new Point(name)
-                  .time(timeStamp, WritePrecision.NS)
-                  .addField("value", longPointData.getValue());
-          longPointData
-              .getAttributes()
-              .forEach((attributeKey, o) -> point.addTag(attributeKey.getKey(), o.toString()));
-
+          Point point = pointDataToPoint(longPointData, name);
+          addAttributesToPoint(point, longPointData.getAttributes());
           points.add(point);
         });
 
@@ -138,19 +120,8 @@ public class MetricDataTransformer {
 
     pointData.forEach(
         longPointData -> {
-          Long timeStamp = longPointData.getEpochNanos();
-
-          Point point =
-              new Point(name)
-                  .time(timeStamp, WritePrecision.NS)
-                  .addField("value", longPointData.getValue());
-          longPointData
-              .getAttributes()
-              .forEach(
-                  (attributeKey, o) -> {
-                    point.addTag(attributeKey.getKey(), o.toString());
-                  });
-
+          Point point = pointDataToPoint(longPointData, name);
+          addAttributesToPoint(point, longPointData.getAttributes());
           points.add(point);
         });
     return points;
@@ -167,17 +138,13 @@ public class MetricDataTransformer {
           Point summaryPoint =
               new Point(name)
                   .time(timeStamp, WritePrecision.NS)
-                  .addField("sum", summaryPointData.getSum())
-                  .addField("count", summaryPointData.getCount());
-          summaryPointData
-              .getAttributes()
-              .forEach(
-                  (attributeKey, o) -> {
-                    summaryPoint.addTag(attributeKey.getKey(), o.toString());
-                  });
+                  .addField(SUM_FIELD_NAME, summaryPointData.getSum())
+                  .addField(COUNT_FIELD_NAME, summaryPointData.getCount());
+          addAttributesToPoint(summaryPoint, summaryPointData.getAttributes());
 
           points.add(summaryPoint);
 
+          Attributes attributes = summaryPointData.getAttributes();
           summaryPointData
               .getValues()
               .forEach(
@@ -185,15 +152,9 @@ public class MetricDataTransformer {
                     Point valueQuantilePoint =
                         new Point(name)
                             .time(timeStamp, WritePrecision.NS)
-                            .addField("value", valueAtQuantile.getValue())
-                            .addField("quantile", valueAtQuantile.getQuantile());
-
-                    summaryPointData
-                        .getAttributes()
-                        .forEach(
-                            (attributeKey, o) -> {
-                              valueQuantilePoint.addTag(attributeKey.getKey(), o.toString());
-                            });
+                            .addField(VALUE_FIELD_NAME, valueAtQuantile.getValue())
+                            .addField(QUANTILTE_FIELD_NAME, valueAtQuantile.getQuantile());
+                    addAttributesToPoint(valueQuantilePoint, attributes);
                     points.add(valueQuantilePoint);
                   });
         });
@@ -211,19 +172,36 @@ public class MetricDataTransformer {
           Point histogramPoint =
               new Point(name)
                   .time(timeStamp, WritePrecision.NS)
-                  .addField("sum", histogramPointData.getSum())
-                  .addField("count", histogramPointData.getCount())
-                  .addField("min", histogramPointData.getMin())
-                  .addField("max", histogramPointData.getMax());
-          histogramPointData
-              .getAttributes()
-              .forEach(
-                  (attributeKey, o) -> {
-                    histogramPoint.addTag(attributeKey.getKey(), o.toString());
-                  });
-
+                  .addField(SUM_FIELD_NAME, histogramPointData.getSum())
+                  .addField(COUNT_FIELD_NAME, histogramPointData.getCount())
+                  .addField(MIN_FIELD_NAME, histogramPointData.getMin())
+                  .addField(MAX_FIELD_NAME, histogramPointData.getMax());
+          addAttributesToPoint(histogramPoint, histogramPointData.getAttributes());
           points.add(histogramPoint);
         });
     return points;
+  }
+
+  private static Point addAttributesToPoint(Point point, Attributes attributes) {
+    attributes.forEach((attributeKey, o) -> point.addTag(attributeKey.getKey(), o.toString()));
+    return point;
+  }
+
+  private static Point pointDataToPoint(DoublePointData pointData, String name) {
+    Long timeStamp = pointData.getEpochNanos();
+    Point point =
+        new Point(name)
+            .time(timeStamp, WritePrecision.NS)
+            .addField(VALUE_FIELD_NAME, pointData.getValue());
+    return point;
+  }
+
+  private static Point pointDataToPoint(LongPointData pointData, String name) {
+    Long timeStamp = pointData.getEpochNanos();
+    Point point =
+        new Point(name)
+            .time(timeStamp, WritePrecision.NS)
+            .addField(VALUE_FIELD_NAME, pointData.getValue());
+    return point;
   }
 }
