@@ -50,7 +50,7 @@ public final class InfluxExporter implements MetricExporter {
      *
      * @param metrics the list of sampled Metrics to be exported.
      *
-     * @return Returns {@link CompletableResultCode.FAILURE}  if an exception occurred during exporting.
+     * @return Returns {@link CompletableResultCode#FAILURE}  if an exception occurred during exporting.
      */
     @Override
     public CompletableResultCode export(@NotNull Collection<MetricData> metrics) {
@@ -67,7 +67,7 @@ public final class InfluxExporter implements MetricExporter {
     /**
      * Flushes the InfluxExporter WriteApi.
      *
-     * @return Returns {@link CompletableResultCode.FAILURE}  if an exception occurred during flushing.
+     * @return Returns {@link CompletableResultCode#FAILURE}  if an exception occurred during flushing.
      */
     @Override
     public CompletableResultCode flush() {
